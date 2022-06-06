@@ -1,0 +1,327 @@
+---
+title: "How to use correlation analysis in R to improve marketing performance"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    toc_depth: 2
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+How to use correlation analysis to improve marketing performance.
+
+**Why correlation?**
+
+It is important to understand what drives relationships. For example, if
+you want to determine how marketing performance impact your sales
+numbers you have to account for all the other major factors that can
+also explain your sales numbers.
+
+Correlation is a great exploratory tool that often reveals interesting
+patterns and can suggest hypotheses. Most importantly, it is really
+straightforward to interpret.
+
+**What is correlation?**
+
+A correlation is a statistic that quantifies the strength between 2
+variables.
+
+We can plot the statistic in a correlation plot or matrix. A number
+between +1 and -1 calculated so as to represent the linear relationship
+between two variables. A positive or negative sign indicates the
+direction of the relationship.
+
+We're not going to get into the mathematics of how correlation is
+calculated.
+
+Let's cover three (3) common correlation methods:
+
+1.  Pearson method - correlation is the default for linear relationships
+    and assumes your data is normally distributed. It is sensitive to
+    outliers and skewed data.
+
+2.  Spearman method - for non-normal populations. Checks for rank or
+    ordered relationships.
+
+3.  Kendall method - for when you have a small dataset and many tied
+    rank relationships.
+
+**How to interpret correlation**
+
+Correlation thresholds using Cohen's Rule of Thumb:
+
+| Correlation Coefficient | Association                 |
+|-------------------------|-----------------------------|
+| r \>= 0.5               | Large or strong association |
+| r = 0.3                 | Medium association          |
+| r = 0.1                 | Small or weak association   |
+
+: Cohen's Rule of Thumb
+
+If the underlying data distribution is **not normal**, then you could
+transform your variables before attempting to apply these thresholds.
+
+**What's an acceptable correlation?**
+
+Even if the correlation coefficient is at or near zero, that doesn't
+meant there's no relationship. It's just that relationship isn't linear,
+but there could be other relationships which is why it's important to
+visualize your variables.
+
+## 1. Set up environment
+
+```{r Load packages}
+# Install pacman if needed
+if (!require("pacman")) install.packages("pacman")
+
+# load packages
+pacman::p_load(pacman,
+  tidyverse, cowplot, VIM, corrplot, parsnip)
+
+setwd('~/Documents/GitHub/Marketing-Analytics-in-R')
+```
+
+## 2. Load & inspect data
+
+We have our dataset that is available on Kaggle.
+<https://www.kaggle.com/datasets/veer06b/marrket-mix-dataset>. Here is
+what is known about this dataset according to Kaggle.
+
+-   The data contains the sales data for two consecutive years of a
+    particular product of a brand
+
+-   Each row contains the Volume of Sales for a week and different
+    campaign/promotion methods for that product for each week
+
+```{r Import sales dataset}
+#Dataset is in datasets subfolder
+df <- read.csv("datasets/mktmix.csv", stringsAsFactors = TRUE)
+
+#Check results
+str(df)
+```
+
+```{r Check for missing data}
+#any missing data? Using VIM package
+aggr(df, prop = F, numbers = T) # radio has some missing data
+```
+
+```{r Impute missing radio data}
+#We will place with a 0
+df$Radio[is.na(df$Radio)] <- 0 
+```
+
+## 3. Exploratory data visualization
+
+Let's do some visualization. If you have several variables, plotting
+them in a pair plot might be a good option. This kills two birds with
+one stone. The visualization step plus the correlation coefficient.
+
+```{r Plot variables individually}
+
+p1 <- ggplot(df, aes(NewVolSales)) + geom_histogram(bins = 50) + theme_minimal() 
+p2 <- ggplot(df, aes(Base_Price, NewVolSales)) + geom_point() + theme_minimal() 
+p3 <- ggplot(df, aes(Radio, NewVolSales)) + geom_point() + theme_minimal() 
+p4 <- ggplot(df, aes(InStore, NewVolSales)) + geom_point() + theme_minimal() 
+p5 <- ggplot(df, aes(NewspaperInserts, NewVolSales)) + geom_boxplot() + theme_minimal() 
+p6 <- ggplot(df, aes(Discount, NewVolSales)) + geom_point() + theme_minimal() 
+p7 <- ggplot(df, aes(TV, NewVolSales)) + geom_point() + theme_minimal()
+p8 <- ggplot(df, aes(Stout, NewVolSales)) + geom_point() + theme_minimal() 
+p9 <- ggplot(df, aes(Website_Campaign, NewVolSales)) + geom_boxplot() + theme_minimal() + coord_flip()
+
+plot_grid(p1, p2, p3, p4, p5, p6, p7, p8, p9, labels = "auto")
+```
+
+```{r Plot Website Campaign with Boxplot}
+ggplot(df, aes(Website_Campaign, NewVolSales)) + geom_boxplot() + theme_minimal() + coord_flip()
+```
+
+What can we tell from the exploratory visualization?
+
+-   Higher sales when the base price is low. Less sales when base price
+    is high.
+
+-   The price of the product and stout seems to have a negative impact
+    on sales. Not sure what stout refers to.
+
+-   Both radio and in-store seems to have some impact. More sales when
+    radio spending and in-store is high.
+
+-   Newspaper insert doesn't appear to have any significant impact.
+
+## 4. Correlation analysis
+
+```{r Correlation Plot of our marketing data}
+#Correlation Plot
+df %>% 
+ select_if(is.numeric) %>% 
+  cor() %>% 
+    corrplot(type = "upper", addCoef.col = "black", diag=FALSE)
+```
+
+We have the correlation coefficients in each box. Positive correlations
+are in blue. Negative correlations in red.
+
+Summary of correlations:
+
+1.  Instore and discount both have a medium positive correlation to
+    NewVolSales.
+
+2.  Radio and TV have a weak positive correlation to NewvolSales.
+
+3.  Price has a strong negative correlation to NewVolSales.
+
+4.  Last, but not least, Stout has a medium negative correlation to
+    NewVolSales
+
+## 5. Correlation and it's relationship to regression
+
+Let's review how correlation and regression are related by reviewing
+just 2 variables (NewVolSales and Discount).
+
+The correlation coefficient of NewVolSales and Discount ads is 0.42
+(rounded to 2 decimal places). If we model this in a linear regression
+model and extract the r-squared, the result is 0.18. (rounded to 2
+decimal places).
+
+If we square the correlation coefficient, we will get our r-squared.
+
+```{r Let us compare correlation coefficient squared with the r-squared}
+corr_coeff <- cor(df$NewVolSales, df$Discount)
+corr_coeff
+
+linear_model <- lm(NewVolSales ~ Discount, data = df )
+r_squared_lm <- summary(linear_model)$r.squared
+r_squared_lm
+
+#This is the correlation coefficient squared - otherwise known as r-squared.
+0.4247606^2
+
+#Now compare the 2 numbers. The squared correlation coefficient and our r-squared extracted from our linear regression model.
+#Are these two the same?
+round(corr_coeff^2,2) == round(r_squared_lm,2)
+```
+
+**NOTE:** The coefficient of determination is our correlation
+coefficient squared. It is the proportion of the variance in the y
+variable that is predictable from our x variable.
+
+## 6. Marketing Mix Modeling
+
+Now we have some insights into which of our variables influence sales,
+let's check for significance by using a linear regression model that
+includes all of our variables.
+
+```{r Model spec for linear regression model}
+# Model Spec
+model_spec_lm <- linear_reg() %>%
+    set_engine('lm') %>% 
+    set_mode('regression')
+```
+
+```{r Linear Regression Model Fit}
+# Fit Linear Regression Model
+model_fit_lm <- model_spec_lm %>%
+    fit(NewVolSales ~ Base_Price + Radio + InStore + factor(NewspaperInserts) + Discount + TV + Stout + factor(Website_Campaign), data = df)
+```
+
+```{r Print summary of model in a tidy object}
+#Print summary of model in a tidy object
+lm_summary <- tidy(model_fit_lm) %>% 
+              mutate(significant = p.value <= 0.05)
+lm_summary
+
+#Use the glance function from the broom package to get additional information from the model (e.g. model statistics like r.squared)
+(mod_glance <- glance(model_fit_lm))
+
+
+#If you prefer, you can use summary function to print output to console
+summary(model_fit_lm$fit)
+```
+
+```{r Print just the significant variables}
+lm_summary %>% 
+  filter(significant == TRUE) %>% 
+  select(term, estimate, significant)
+
+```
+
+Our baseline revenue is 54,394. The only positive significant variable
+is InStore. The negative significant variables are Base_Price, Stout &
+Website Campaign.
+
+## 7. What can we derive from our correlation analysis and how can we use this to inform marketing?
+
+For the purpose of our analysis, we will just focus on the relationship
+between NewVolSales and each independent (x) variable.
+
+What's **not working** in marketing?:
+
+1.  Price - significant. We lose money when we increase the base price.
+
+2.  Stout - significant
+
+What is **working** with marketing?:
+
+1.  Instore - significant
+
+What is **not impactful**?:
+
+1.  Radio - not significant
+
+2.  TV - not significant
+
+3.  Discount - not significant
+
+You should at this point have a conversation with your marketing
+stakeholders to understand their marketing goals and tactics for each of
+their marketing initiatives. There may be different goals for different
+initiatives. For instance, if marketing is using Radio and TV for
+top-funnel activities, then what we see in the data makes sense. Radio
+and TV are great for branding, but may have less of an impact on
+bottom-funnel metrics like sales.
+
+## 8. Next steps
+
+With our correlation analysis we have derived some key insights into
+what is working and what isn't working when it comes to increased sales.
+Now, it's up to you to go further in your analysis which could include:
+
+1.  Adding in additional factors that were not included initially.
+
+2.  Quantifying the impact of each marketing effort (e.g. ROI).
+
+3.  Build a future forecast based on current levels of marketing spend
+    and promotions.
+
+**Pitfalls of correlation:**
+
+1.  DANGER! DANGER! Correlation does not equal causation - correlation
+    gives us a way to check if there is an association between two
+    variables, but there could be other explanations.
+
+2.  Latent or hidden variables can affect the relationship between
+    two (2) variables.
+
+**Advice:**
+
+1.  Always check for highly correlated variables. An r > 0.9. You can do
+    this by either checking the correlation matrix or checking the
+    variance inflation factor (VIF).
+
+2.  If collinearity exists, remove or transform before modeling.
+    Example, taking the natural log of a variable.
+
+3.  Model data using methods robust to collinearity, e.g. Random Forest
+    models.
+
+## 9. Final summary
+
+We walked through how to use correlation to help explain marketing
+performance. How to test for significance. Outlined potential next steps
+in your analysis.
