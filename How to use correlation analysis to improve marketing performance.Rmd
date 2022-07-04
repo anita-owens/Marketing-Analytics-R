@@ -83,7 +83,7 @@ if (!require("pacman")) install.packages("pacman")
 pacman::p_load(pacman,
   tidyverse, cowplot, VIM, corrplot, parsnip)
 
-setwd('~/Documents/GitHub/Marketing-Analytics-in-R')
+setwd('~/Documents/GitHub/Marketing-Analytics-R')
 ```
 
 ## 2. Load & inspect data
@@ -124,7 +124,7 @@ one stone. The visualization step plus the correlation coefficient.
 
 ```{r Plot variables individually}
 
-p1 <- ggplot(df, aes(NewVolSales)) + geom_histogram(bins = 50) + theme_minimal() 
+p1 <- ggplot(df, aes(NewVolSales)) + geom_histogram(bins = 50, aes(y=..density..),  colour="black", fill="grey") + geom_density(alpha=.2, fill="#f4ecc2") + theme_minimal() 
 p2 <- ggplot(df, aes(Base_Price, NewVolSales)) + geom_point() + theme_minimal() 
 p3 <- ggplot(df, aes(Radio, NewVolSales)) + geom_point() + theme_minimal() 
 p4 <- ggplot(df, aes(InStore, NewVolSales)) + geom_point() + theme_minimal() 
@@ -156,11 +156,14 @@ What can we tell from the exploratory visualization?
 
 ## 4. Correlation analysis
 
+The default method is pearson. You can change the method to kendall or
+spearman for non-normal distributions.
+
 ```{r Correlation Plot of our marketing data}
 #Correlation Plot
 df %>% 
  select_if(is.numeric) %>% 
-  cor() %>% 
+  cor(method = "pearson") %>% 
     corrplot(type = "upper", addCoef.col = "black", diag=FALSE)
 ```
 
@@ -174,7 +177,7 @@ Summary of correlations:
 
 2.  Radio and TV have a weak positive correlation to NewvolSales.
 
-3.  Price has a strong negative correlation to NewVolSales.
+3.  Base_Price has a strong negative correlation to NewVolSales.
 
 4.  Last, but not least, Stout has a medium negative correlation to
     NewVolSales
@@ -192,18 +195,18 @@ decimal places).
 If we square the correlation coefficient, we will get our r-squared.
 
 ```{r Let us compare correlation coefficient squared with the r-squared}
+#Extract correlation coefficient
 corr_coeff <- cor(df$NewVolSales, df$Discount)
 corr_coeff
 
+#Extract R-squared from lm
 linear_model <- lm(NewVolSales ~ Discount, data = df )
 r_squared_lm <- summary(linear_model)$r.squared
 r_squared_lm
 
-#This is the correlation coefficient squared - otherwise known as r-squared.
-0.4247606^2
 
-#Now compare the 2 numbers. The squared correlation coefficient and our r-squared extracted from our linear regression model.
-#Are these two the same?
+#Now compare the 2 numbers. The correlation coefficient squared and our r-squared extracted from our linear regression model. Rounded to 2 decimal places.
+#Are these two the same? Yes they are.
 round(corr_coeff^2,2) == round(r_squared_lm,2)
 ```
 
@@ -226,34 +229,38 @@ model_spec_lm <- linear_reg() %>%
 
 ```{r Linear Regression Model Fit}
 # Fit Linear Regression Model
-model_fit_lm <- model_spec_lm %>%
+mkmix_model <- model_spec_lm %>%
     fit(NewVolSales ~ Base_Price + Radio + InStore + factor(NewspaperInserts) + Discount + TV + Stout + factor(Website_Campaign), data = df)
 ```
 
 ```{r Print summary of model in a tidy object}
 #Print summary of model in a tidy object
-lm_summary <- tidy(model_fit_lm) %>% 
+mkmix_summary <- tidy(mkmix_model) %>% 
               mutate(significant = p.value <= 0.05)
-lm_summary
+mkmix_summary
 
 #Use the glance function from the broom package to get additional information from the model (e.g. model statistics like r.squared)
-(mod_glance <- glance(model_fit_lm))
+(mod_glance <- glance(mkmix_model))
 
 
 #If you prefer, you can use summary function to print output to console
-summary(model_fit_lm$fit)
+summary(mkmix_model$fit)
 ```
 
 ```{r Print just the significant variables}
-lm_summary %>% 
+mkmix_summary %>% 
   filter(significant == TRUE) %>% 
   select(term, estimate, significant)
-
 ```
 
-Our baseline revenue is 54,394. The only positive significant variable
-is InStore. The negative significant variables are Base_Price, Stout &
-Website Campaign.
+Our baseline revenue is 54,394. The only positive significant (p-value
+is less than 0.05) variable is InStore. The negative significant
+variables are Base_Price, Stout & Website Campaign (no campaign). The
+generic interpretation for each of our coefficients is for every one
+unit increase in the x variable, the y variable (NewVolSales) increases
+by beta units. For example, for every 1 unit increase of InStore, sales
+increase by 28. If our sales volume is in dollars, then this would be a
+28 dollar increase.
 
 ## 7. What can we derive from our correlation analysis and how can we use this to inform marketing?
 
@@ -320,8 +327,26 @@ Now, it's up to you to go further in your analysis which could include:
 3.  Model data using methods robust to collinearity, e.g. Random Forest
     models.
 
-## 9. Final summary
+## 9. Final Summary & Key Takeaways
 
-We walked through how to use correlation to help explain marketing
-performance. How to test for significance. Outlined potential next steps
-in your analysis.
+We walked through:
+
+1.  How to use correlation to help explain marketing performance.
+
+2.  How to test for significance.
+
+3.  Outlined potential next steps in your analysis.
+
+```{r Positive Correlation Example, include=FALSE}
+x <- seq(from = 0, to = 10, by = 1)
+print(x)
+
+y <- seq(from = 0, to = 100, by = 10)
+print(y)
+
+df = as.data.frame(cbind(x,y))
+
+str(df)
+
+plot(df$x, df$y, main = "Positive Correlation", xlab = "x", ylab = "y")
+```
