@@ -1,0 +1,217 @@
+---
+title: "How to simulate sales data in R"
+subtitle: "Stretch your coding and data analysis skills by creating your own datasets"
+author: "Anita Owens"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    toc_depth: 2
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{=html}
+<style>
+#TOC {
+  color: #000000;
+  font-family: Calibri;
+  font-size: 16px; 
+  border-color: #708090;
+}
+#header {
+  color: #000000;
+  background-color: #edf2f4;
+  opacity: 1;
+  font-family: Calibri;
+  font-size: 20px;
+}
+body {
+  color: #000000;
+  font-family: Calibri;
+  background-color: #ffffff;
+  font-size: 18px;
+}
+pre {
+  color: #000000;
+  background-color: #ffffff;
+}
+</style>
+```
+
+## 1. Introduction
+
+Why simulate data?
+
+Have you ever spent an inordinate amount of time looking for the right
+data set to try out an analytical technique, but you don't quite find
+what you are looking for.
+
+Well, why not just create your own dataset for maximum flexibility which
+gives you a few advantages:
+
+1.  To test your analysis to make sure it's working.
+2.  To make changes to your dataset to see what happens and how your
+    conclusions might change based on different parameters . (e.g. How
+    sales are impacted by different levels of the price of our product).
+
+This article will walk through how to create synthetic data in R.
+
+We want to simulate weekly sales of a product at a store. It could be an
+in-store or ecommerce site, it doesn't really matter.
+
+
+```{r Set up environment and load packages}
+
+# Install pacman if needed
+if (!require("pacman")) install.packages("pacman")
+
+# load packages
+pacman::p_load(pacman,
+  tidyverse, openxlsx, psych, ggcorrplot, corrplot, cowplot, openxlsx)
+```
+
+## 2. Simulate Data
+
+First, we will create a skeleton data frame to hold our variables and
+initialize with 0 values for all columns except the date column.
+
+1.  Sales date (based on week level granularity)
+2.  Unit sales
+3.  Unit price
+4.  Paid social ads
+5.  Promotion - whether there was a promotion this week.
+
+```{r Create skeleton data frame}
+#Initialize empty data frame
+df <- data.frame(sales_date = seq(as.Date('2019-01-01'), by = 'week', length.out=52),
+                 unit_sales = 0, price = 0, social = 0, promotion = 0)
+
+#view data frame
+df
+```
+
+Always set the seed for reproducibility when simulating data especially if you want to re-create the same dataset later.
+
+
+```{r Set seed for reproducibility}
+#Set seed for reproducibility
+set.seed(90210)
+```
+
+We want to add weeks with marketing promotions.
+
+We will simulate with the binomial distribution. The notation of the binomial distribution is B(n,p), where n is the number of experiments or trials, and p is the probability of a success.
+
+
+```{r Create promotion value}
+#Create weeks where there were promotions running. 10% likelihood of a promotion
+df$promotion <- rbinom(n=nrow(df), size = 1, p=0.1)
+```
+
+We want to only add Paid Social values for the range of dates between
+July and September and again in December.
+
+```{r We want to replace weeks where we had paid social ads running for the amount we spent}
+df <- df %>% 
+  mutate(social = replace(social, between(sales_date,as.Date('2019-07-02'),as.Date('2019-09-10')), 350)) %>% mutate(social = replace(social, between(sales_date,as.Date('2019-12-03'),as.Date('2019-12-24')), 200))
+```
+
+Generate the product's price and place in a vector and then we'll use the sample function to randomly add prices to our dataframe.
+
+```{r Create price values}
+df$price <- sample(x=c(4.50, 4.99), size = nrow(df), replace = TRUE)
+
+#Check output
+table(df$price)
+```
+
+
+Next is to generate sales data and place into a temporary sales
+variable.
+
+Sales data is randomly generated based on a poisson distribution.
+
+```{r Generate Sales Data}
+#first argument is the number of draws
+#2nd argument is the mean value per week of sales
+temp_sales <- rpois(nrow(df), lambda = 8300)
+
+#Check output
+temp_sales
+```
+
+
+```{r Scale sales up according to price to follow a logarithmic function}
+temp_sales <- temp_sales * log(df$price)
+
+#Check output
+temp_sales
+```
+
+
+
+In our last step, we need to take our temporary sales and make sure to
+add an increase of 30% in unit sales for weeks we have the promotion
+running. We want to show the boost in sales in the weeks where there are promotions.
+
+```{r Add impact of increased sales due to week where a promotion was running}
+df$unit_sales <- floor(temp_sales * (1 + df$promotion * 0.30))
+```
+
+## 3. Check Results
+
+```{r Descriptive statitics}
+#Let's do some descriptive statistics
+df %>% 
+ select_if(is.numeric) %>% 
+  psych::describe()
+```
+
+Let's visualize the variables in our dataset we created.
+
+```{r Visualize Variables Individually}
+#Create visualizations
+p1 <- ggplot(df, aes(sales_date, unit_sales)) + geom_line() + theme_minimal() 
+
+p2 <- ggplot(df, aes(social, unit_sales)) + geom_point() + theme_minimal() 
+
+p3 <- ggplot(df, aes(factor(promotion), unit_sales)) + geom_boxplot() + theme_minimal()
+
+p4 <- ggplot(df, aes(factor(price), unit_sales)) + geom_boxplot() + theme_minimal()
+
+
+plot_grid(p1, p2, p3, p4, labels = "AUTO")
+```
+
+Visualization of the correlation coefficients.
+
+```{r Pairs Plot}
+#Correlation Plot
+df %>% 
+ select_if(is.numeric) %>% 
+  cor() %>% 
+    corrplot(type = "upper", addCoef.col = "black", diag=FALSE)
+```
+
+Our synthetic data looks good enough for us to do some data analysis
+e.g. marketing mix modeling, measuring advertising effectiveness, etc.
+
+## 4. Export simulated dataset to an external file
+
+```{r Save simulated dataset as a csv file or excel file}
+
+write.csv(df, "weekly_sales_data.csv")
+
+#Using openxlsx package
+write.xlsx(x = df, file = "weekly_sales_data.xlsx")
+```
+
+## 5. References
+
+1.  Chapman, C. and McDonnell Feit, E., (2015). R for marketing research
+    and analytics. Cham: Springer, pp.47-59, 162--191.
