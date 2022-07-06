@@ -77,7 +77,17 @@ pacman::p_load(pacman,
 
 ## 2. Simulate Data
 
-First, we will create a skeleton data frame to hold our variables and
+
+First, set the seed for reproducibility when simulating data especially if you want to re-create the same dataset later.
+
+
+```{r Set seed for reproducibility}
+#Set seed for reproducibility
+set.seed(90210)
+```
+
+
+Secondly, we will create a skeleton data frame to hold our variables and
 initialize with 0 values for all columns except the date column.
 
 1.  Sales date (based on week level granularity)
@@ -95,13 +105,6 @@ df <- data.frame(sales_date = seq(as.Date('2019-01-01'), by = 'week', length.out
 df
 ```
 
-Always set the seed for reproducibility when simulating data especially if you want to re-create the same dataset later.
-
-
-```{r Set seed for reproducibility}
-#Set seed for reproducibility
-set.seed(90210)
-```
 
 We want to add weeks with marketing promotions.
 
@@ -131,8 +134,7 @@ table(df$price)
 ```
 
 
-Next is to generate sales data and place into a temporary sales
-variable.
+Next is to generate unit sales data and place into a temporary sales variable.
 
 Sales data is randomly generated based on a poisson distribution.
 
@@ -147,6 +149,7 @@ temp_sales
 
 
 ```{r Scale sales up according to price to follow a logarithmic function}
+#Scale sales by multiplying sales by the log of price
 temp_sales <- temp_sales * log(df$price)
 
 #Check output
