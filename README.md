@@ -12,4 +12,4 @@
 
 **Project 2:** :test_tube: [How to simulate sales data in R](https://github.com/bonheurgirl/Marketing-Analytics-R/blob/main/How%20to%20simulate%20sales%20data%20in%20R.Rmd)
 
-> This project walks through how to simulate a synthetic dataset. The dataset contains 12 months of sales data for a product. [RPubs publication](https://rpubs.com/anitaowens/simulate-sales-data)
+> This project walks through how to simulate a synthetic dataset. The dataset contains 12 months of sales data for a product. [RPubs publication](http://rpubs.com/anitaowens/synthetic-data)
