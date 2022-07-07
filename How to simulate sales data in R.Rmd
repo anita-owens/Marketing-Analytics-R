@@ -227,9 +227,10 @@ e.g. marketing mix modeling, measuring advertising effectiveness, etc.
 ## 4. Export simulated dataset to an external file
 
 ```{r Save simulated dataset as a csv file or excel file}
+#Write csv file
+write.csv(df, "datasets/weekly_sales_data.csv")
 
-write.csv(df, "datadets/weekly_sales_data.csv")
-
+#Write to an Excel file
 #Using openxlsx package
 write.xlsx(x = df, file = "datasets/weekly_sales_data.xlsx")
 ```
