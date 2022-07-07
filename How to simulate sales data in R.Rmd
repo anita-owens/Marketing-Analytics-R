@@ -95,7 +95,7 @@ initialize with 0 values for all columns except the date column.
 
 
 ```{r Create a sequence of dates}
-sales_date = seq(as.Date('2019-01-01'), by = 'week', length.out=52)
+sales_date <- seq(as.Date('2019-01-01'), by = 'week', length.out=52)
 
 #Check results
 print(sales_date)
@@ -110,7 +110,7 @@ trials, and p is the probability of a success.
 
 ```{r Create promotion vector}
 #Create weeks where there were promotions running. 10% likelihood of a promotion
-promotion <- rbinom(n=length(sales_date), size = 1, p=0.1)
+promotion <- rbinom(n=length(sales_date), size = 1, p = 0.1)
 
 table(promotion)
 ```
