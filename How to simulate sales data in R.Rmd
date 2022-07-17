@@ -110,13 +110,16 @@ trials, and p is the probability of a success.
 #Create weeks where there were promotions running. 10% likelihood of a promotion
 promotion <- rbinom(n=length(sales_date), size = 1, p = 0.1)
 
+#Check results
 table(promotion)
 ```
 
 
 ```{r Create social vector }
+#Create social vector
 social <-rep(0, length(sales_date))
 
+#Check results
 print(social)
 ```
 
@@ -161,7 +164,11 @@ running. We want to show the boost in sales in the weeks where there are
 promotions.
 
 ```{r Add impact of increased sales due to week where a promotion was running}
+#Add impact of increased sales due to week where a promotion was running
 unit_sales <- floor(temp_sales * (1 + promotion * 0.30))
+
+#Check results
+unit_sales
 ```
 
 ## 4. Putting it all together
@@ -236,4 +243,4 @@ write.xlsx(x = df, file = "datasets/weekly_sales_data.xlsx")
 ## 7. References
 
 1.  Chapman, C. and McDonnell Feit, E., (2015). R for marketing research
-    and analytics. Cham: Springer, pp.47-59, 162-191.
+    and analytics. Cham: Springer, pp.47-59, 162-165.
