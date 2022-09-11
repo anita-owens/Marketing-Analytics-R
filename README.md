@@ -13,3 +13,9 @@
 **Project 2:** :test_tube: [How to simulate sales data in R](https://github.com/bonheurgirl/Marketing-Analytics-R/blob/main/How%20to%20simulate%20sales%20data%20in%20R.Rmd)
 
 > This project walks through how to simulate a synthetic dataset. The dataset contains 12 months of sales data for a product. [RPubs publication](http://rpubs.com/anitaowens/synthetic-data)
+
+------------------------------------------------------------------------
+
+**Project 3:** 🫴 [How to calculate marketing impact when you can't A/B test: An example of before-and-after analysis in R](https://github.com/bonheurgirl/Marketing-Analytics-R/blob/main/How%20to%20calculate%20marketing%20impact%20when%20you%20can't%20A:B%20test.Rmd)
+
+> An example of before-and-after marketing analysis. [RPubs publication](https://rpubs.com/anitaowens/before-after-analysis-marketing)
