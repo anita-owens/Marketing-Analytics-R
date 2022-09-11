@@ -1,0 +1,280 @@
+---
+title: "How to calculate marketing impact when you can't A/B test"
+subtitle: "An example of before-and-after analysis in R"
+author: "Anita Owens"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    toc_depth: 2
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{=html}
+<style>
+#TOC {
+  color: #000000;
+  font-family: Calibri;
+  font-size: 16px; 
+  border-color: #DA4253;
+}
+#header {
+  color: #000000;
+  background-color: #DA4253; <! -- red color -->
+  opacity: 1;
+  font-family: Calibri;
+  font-size: 20px;
+  color: #FFFFFF;
+}
+body {
+  color: #000000;
+  font-family: Calibri;
+  background-color: #ffffff;
+  font-size: 18px;
+}
+pre {
+  color: #000000;
+  background-color: #ffffff;
+}
+</style>
+```
+## 1. Introduction
+
+How to calculate marketing impact when you can't A/B test.
+
+As an analyst, you might have an exchange that looks like the following:
+
+CMO: Hey! We started running some social ads a few weeks ago. Our agency
+designed some cool creatives and we're getting a lot of traffic.
+
+Me: Cool!
+
+CMO: We need to know if we see an impact. I have to report back to the
+CEO tomorrow.
+
+Me: What kind of impact?
+
+CMO: Increased sales.
+
+Me: Umm, okay!
+
+Me: GIF!
+
+Something like this scenario is playing out somewhere in some company. Often businesses make changes to processes in the hope that the changes increases revenue, customer acquisition, customer retention, etc.
+
+However, I know from experience that the best way to measure these types of changes is through experimentation and A/B testing.
+
+Every organization should have a testing infrastructure in place to
+guide decision-making & evaluate ideas. In reality, most A/B tests fail
+or are not significant (bad design, trivial changes, too many changes,
+etc.)
+
+One of the key activities for companies to become more data-driven is
+A/B testing. There are going to be times where running a control
+experiment for something like activating a new channel, may not be
+possible. Also, customer behavior can sometimes be difficult to untangle amongst all of the different factors that influence buying decisions.
+
+So how can we evaluate the impact of a change that's already taken place? We can use a before and after analysis. Let's get started. Rather than using a pre-selected dataset, we will create a synthetic dataset to use for our analysis.
+
+```{r Set up environment and load packages}
+
+# Install pacman if needed
+if (!require("pacman")) install.packages("pacman")
+
+# load packages
+pacman::p_load(pacman,
+  tidyverse, openxlsx, psych, ggcorrplot, corrplot, cowplot)
+```
+
+## 2. Create synthetic data
+
+First, set the seed for reproducibility when simulating data especially
+if you want to re-create the same dataset later.
+
+```{r Set seed for reproducibility}
+#Set seed for reproducibility
+set.seed(32250)
+```
+
+The dataset we want to create is as follows:
+
+1.  Sales date (based on week level granularity)
+2.  Revenue
+3.  Paid social ads
+
+```{r Create a sequence of dates}
+sales_date <- seq(as.Date('2021-01-01'), by = 'week', length.out=52)
+
+#Check results
+print(sales_date)
+```
+
+```{r Create temporary social vectors}
+
+social_ad_spend_avg <- 220
+
+social_1 <-rep(0, length(sales_date) - 20)
+
+print(social_1)
+
+
+#Represents 10 weeks of social ad spending
+social_2 <-rep(social_ad_spend_avg, length(sales_date) - length(social_1) - 10)
+
+print(social_2)
+
+social_3 <-rep(0, length(sales_date) - length(social_1) - length(social_2))
+
+print(social_3)
+```
+
+```{r Combine the 3 temporary social vectors into 1}
+#Combine into 1 vector
+social <- c(social_1, social_2, social_3)
+
+#Check if we have 52 weeks worth of data
+length(social)
+```
+
+Next is to generate revenue and place into a temporary revenue variable.
+
+Revenue data is randomly generated based on a normal distribution.
+
+```{r Generate Revenue Data}
+#first argument is the number of draws
+#2nd argument is the mean value per week of sales
+temp_revenue <- rnorm(n=length(sales_date), mean = 3800, sd = 500)
+
+
+#Check output
+temp_revenue
+```
+
+```{r Create dataframe by merging all of our lists }
+#Initialize data frame
+df <- data.frame(sales_date,
+                 temp_revenue, social)
+```
+
+In our last step, we want to scale revenue up for the periods during and after additional marketing ad spend.
+
+
+
+```{r We want to scale sales up for the period during and after additional marketing ad spend}
+df1 <- df %>% 
+    mutate(revenue =
+      case_when(
+        sales_date >= "2021-08-13" ~ (temp_revenue + (temp_revenue * 0.35)), 
+        TRUE ~ temp_revenue)
+      )
+
+head(df1)
+```
+
+The first that we want to do is define our (before and after) time periods, we need to add a column for the advertising periods.
+
+
+```{r Create new variable for before and after and drop temporary revenue column}
+df_final <- df1 %>% 
+  select(-temp_revenue) %>% 
+  mutate(advert_period = ifelse(sales_date < "2021-08-13", "before", "after" ))
+```
+
+
+```{r Check dataset}
+summary(df_final)
+```
+
+
+This dataset is 100% synthetic. It's simulated data, but let's visualize the data to make sure the dataset is good enough for performing our analysis.
+
+## 3. Visualize dataset
+
+```{r Let us visualize dataset}
+p1 <- ggplot(df_final, aes(sales_date, revenue)) + geom_line() + theme_minimal() 
+p2 <- ggplot(df_final, aes(revenue, advert_period)) + geom_boxplot() + theme_minimal() 
+
+plot_grid(p1, p2, labels = "AUTO")
+```
+
+
+## 4. Analysis
+
+
+Now, let's create a new dataframe. We want equal number of weeks of before and during our social ad spending time periods. We spent during a 10 week period so we want the 10 weeks before.
+
+```{r Create subset dataframe to the time period we are interested in}
+#Filter on dates from the start date of our spending minus 10 weeks plus the entire social spending period. To subtract 10 weeks from our spending date, we will multiply 7 days by 10 to get the right interval in weeks.
+before_after_df <- df_final %>% 
+        filter(between(sales_date, as.Date('2021-08-13') - 7*10, as.Date('2021-10-15')))
+
+
+before_after_df
+```
+
+
+Then we will take the average revenue for both time periods.
+
+```{r Get mean revenue of the two time periods before and after}
+ads_group <- before_after_df %>% 
+  group_by(advert_period) %>% 
+  summarize_at('revenue', .funs=mean) %>% 
+  arrange(desc(advert_period))
+ads_group
+
+#Difference
+ads_group
+```
+Let's extract the average revenue for each period and calculate the percentage difference.
+
+```{r Before and after means}
+beforeMean<- as.numeric(ads_group %>% filter(advert_period == 'before') %>% select(revenue))
+
+
+afterMean <- as.numeric(ads_group %>% filter(advert_period == 'after') %>% select(revenue))
+ 
+uplift <- round(afterMean - beforeMean,2) 
+
+
+percChange<- round(((afterMean-beforeMean)/beforeMean) *100,2)
+
+
+print(paste("The difference in revenue from before and after is", uplift, "US Dollars", "with the percentage difference being", percChange, "%"))
+```
+
+With the average difference in revenue, we can calculate the uplift. First, let's grab the average spend.
+
+
+```{r Average Spend}
+#First calculate the average spend
+avg_spend_df <- df_final %>% 
+  filter(between(sales_date, as.Date('2021-08-13'), as.Date('2021-10-15'))) %>% 
+  summarize(avg_spend = mean(social))
+
+avg_spend <- avg_spend_df[[1]]
+```
+Now calculate the ROI based on uplift and average spending.
+
+```{r ROI}
+#Take the uplift which is the difference in average revenue subtract the average spend. Then divide by the average spend
+roi <- round((uplift - avg_spend)/avg_spend,2)
+roi
+```
+
+If our revenue is in dollars, then for every $1 spent, we earned $2.16 dollars in revenue.
+
+
+## 5. Final Summary
+
+
+
+Before and after analysis can help provide some context to evaluate initiatives that could not be A/B tested, but we still want to understand the impact.
+
+## 6. References
+
+[1] Chapman, C. and McDonnell Feit, E., (2015). R for marketing research and analytics. Cham: Springer, pp.47-59.
