@@ -4,6 +4,8 @@ subtitle: "An example of before-and-after analysis in R"
 author: "Anita Owens"
 output:
   html_document:
+    theme: united
+    highlight: tango
     df_print: paged
     toc: true
     toc_float:
@@ -47,32 +49,7 @@ pre {
 
 How to calculate marketing impact when you can't A/B test.
 
-As an analyst, you might have an exchange that looks like the following:
 
-CMO: Hey! We started running some social ads a few weeks ago. Our agency
-designed some cool creatives and we're getting a lot of traffic.
-
-Me: Cool!
-
-CMO: We need to know if we see an impact. I have to report back to the
-CEO tomorrow.
-
-Me: What kind of impact?
-
-CMO: Increased sales.
-
-Me: Umm, okay!
-
-Me: GIF!
-
-Something like this scenario is playing out somewhere in some company. Often businesses make changes to processes in the hope that the changes increases revenue, customer acquisition, customer retention, etc.
-
-However, I know from experience that the best way to measure these types of changes is through experimentation and A/B testing.
-
-Every organization should have a testing infrastructure in place to
-guide decision-making & evaluate ideas. In reality, most A/B tests fail
-or are not significant (bad design, trivial changes, too many changes,
-etc.)
 
 One of the key activities for companies to become more data-driven is
 A/B testing. There are going to be times where running a control
@@ -88,7 +65,7 @@ if (!require("pacman")) install.packages("pacman")
 
 # load packages
 pacman::p_load(pacman,
-  tidyverse, openxlsx, psych, ggcorrplot, corrplot, cowplot)
+  tidyverse, openxlsx, psych, ggcorrplot, corrplot, cowplot, ggthemes)
 ```
 
 ## 2. Create synthetic data
@@ -176,7 +153,7 @@ df1 <- df %>%
 head(df1)
 ```
 
-The first that we want to do is define our (before and after) time periods, we need to add a column for the advertising periods.
+The first thing that we want to do is define our (before and after) time periods, we need to add a column for the advertising periods.
 
 
 ```{r Create new variable for before and after and drop temporary revenue column}
@@ -185,9 +162,15 @@ df_final <- df1 %>%
   mutate(advert_period = ifelse(sales_date < "2021-08-13", "before", "after" ))
 ```
 
+```{r Reorder advertising period so that before comes first and then after}
+
+df_final$advert_period <- factor(df_final$advert_period, levels=c('before','after'))
+```
+
+
 
 ```{r Check dataset}
-summary(df_final)
+glimpse(df_final)
 ```
 
 
@@ -196,10 +179,10 @@ This dataset is 100% synthetic. It's simulated data, but let's visualize the dat
 ## 3. Visualize dataset
 
 ```{r Let us visualize dataset}
-p1 <- ggplot(df_final, aes(sales_date, revenue)) + geom_line() + theme_minimal() 
-p2 <- ggplot(df_final, aes(revenue, advert_period)) + geom_boxplot() + theme_minimal() 
+p1 <- ggplot(df_final, aes(sales_date, revenue)) + geom_line() + theme_hc() + scale_y_continuous(expand = c(0, 0), limits = c(0, 7000)) + labs(x=" ", y=" ")
+p2 <- ggplot(df_final, aes(revenue, advert_period)) + geom_boxplot() + theme_hc() + coord_flip() + labs(x = " ", y="Advertising Period")
 
-plot_grid(p1, p2, labels = "AUTO")
+plot_grid(p1, p2, nrow = 2, ncol = 1, labels = c("Revenue over time", "Revenue by social advertising period"))
 ```
 
 
@@ -224,13 +207,13 @@ Then we will take the average revenue for both time periods.
 ads_group <- before_after_df %>% 
   group_by(advert_period) %>% 
   summarize_at('revenue', .funs=mean) %>% 
-  arrange(desc(advert_period))
+  arrange(advert_period)
 ads_group
 
-#Difference
+
 ads_group
 ```
-Let's extract the average revenue for each period and calculate the percentage difference.
+Let's extract the average revenue for each period and calculate the percentage difference. With the average difference in revenue, we can calculate the uplift.
 
 ```{r Before and after means}
 beforeMean<- as.numeric(ads_group %>% filter(advert_period == 'before') %>% select(revenue))
@@ -247,21 +230,23 @@ percChange<- round(((afterMean-beforeMean)/beforeMean) *100,2)
 print(paste("The difference in revenue from before and after is", uplift, "US Dollars", "with the percentage difference being", percChange, "%"))
 ```
 
-With the average difference in revenue, we can calculate the uplift. First, let's grab the average spend.
+First, let's grab the average spend.
 
 
-```{r Average Spend}
+```{r Average Marketing Spend}
 #First calculate the average spend
 avg_spend_df <- df_final %>% 
   filter(between(sales_date, as.Date('2021-08-13'), as.Date('2021-10-15'))) %>% 
   summarize(avg_spend = mean(social))
 
-avg_spend <- avg_spend_df[[1]]
+(avg_spend <- avg_spend_df[[1]])
 ```
+
+
 Now calculate the ROI based on uplift and average spending.
 
 ```{r ROI}
-#Take the uplift which is the difference in average revenue subtract the average spend. Then divide by the average spend
+#Take the uplift which is the difference in average revenue subtract the average spend. Then divide by the average spend.
 roi <- round((uplift - avg_spend)/avg_spend,2)
 roi
 ```
@@ -275,6 +260,19 @@ If our revenue is in dollars, then for every $1 spent, we earned $2.16 dollars i
 
 Before and after analysis can help provide some context to evaluate initiatives that could not be A/B tested, but we still want to understand the impact.
 
+
+
 ## 6. References
 
 [1] Chapman, C. and McDonnell Feit, E., (2015). R for marketing research and analytics. Cham: Springer, pp.47-59.
+
+
+```{r Export original dataset to a csv file, include=FALSE}
+#Write csv file
+write.csv(df_final, "datasets/marketing_impact_data.csv")
+
+#Write to an Excel file
+#Using openxlsx package
+write.xlsx(x = df_final, file = "datasets/marketing_impact_data.xlsx")
+```
+
