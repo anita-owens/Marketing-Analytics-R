@@ -243,12 +243,12 @@ avg_spend_df <- df_final %>%
 ```
 
 
-Now calculate the ROI based on uplift and average spending.
+Now calculate the return on ad spend based on uplift and average spending.
 
-```{r ROI}
+```{r Return on advertising spend}
 #Take the uplift which is the difference in average revenue subtract the average spend. Then divide by the average spend.
-roi <- round((uplift - avg_spend)/avg_spend,2)
-roi
+roas <- round((uplift - avg_spend)/avg_spend,2)
+roas
 ```
 
 If our revenue is in dollars, then for every $1 spent, we earned $2.16 dollars in revenue.
